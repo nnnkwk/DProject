@@ -1,0 +1,23 @@
+[Unit]
+Description=Discord Role Request Bot
+Wants=network-online.target mariadb.service
+After=network-online.target mariadb.service
+
+[Service]
+Type=simple
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/discord-role-request-bot
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/discord-role-request-bot/src/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
