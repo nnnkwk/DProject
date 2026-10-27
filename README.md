@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Discord Role Request Bot
+=======
+# DProject
+>>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
 
 Discord-бот для одного сервера на **discord.js v14** и **MySQL/MariaDB**: запросы ролей, учёт и архив модераторов, наказания, система обращений (тикеты) и система уровней.
 
@@ -70,7 +74,7 @@ Discord-бот для одного сервера на **discord.js v14** и **M
 mysql -u root -p < schema.sql
 ```
 
-Скрипт создаст базу `discord_role_requests` и все таблицы. Для production рекомендуется отдельный пользователь БД:
+Скрипт создаст базу `DProject` и все таблицы. Для production рекомендуется отдельный пользователь БД:
 
 ```sql
 CREATE USER 'discordbot'@'127.0.0.1' IDENTIFIED BY 'STRONG_PASSWORD';

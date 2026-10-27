@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 CREATE DATABASE IF NOT EXISTS discord_role_requests
+=======
+CREATE DATABASE IF NOT EXISTS DProject
+>>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 USE discord_role_requests;
@@ -275,6 +279,7 @@ INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('setpoints', 'deputy_head_moderator'),
   ('setpoints', 'head_moderator'),
   ('setpoints', 'discord_administrator');
+<<<<<<< HEAD
 
 -- Экономика: валюта «Нефриты».
 CREATE TABLE IF NOT EXISTS user_economy (
@@ -337,3 +342,5 @@ INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('delmarket', 'deputy_head_moderator'),
   ('delmarket', 'head_moderator'),
   ('delmarket', 'discord_administrator');
+=======
+>>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
