@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS discord_bot
+CREATE DATABASE IF NOT EXISTS DProject
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 USE discord_role_requests;
