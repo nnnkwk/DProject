@@ -21,6 +21,7 @@ import {
 } from './moderation-panel.js';
 import { handleCommand } from './commands.js';
 import { handleLeadersButton } from './levels.js';
+import { handleMarketAutocomplete, handleMarketInteraction } from './market.js';
 import { handleTicketCreateButton, handleTicketModalSubmit } from './tickets.js';
 
 const sessions = new Map();
@@ -256,8 +257,18 @@ async function handleRemoveRoles(interaction) {
 }
 
 export async function handleInteraction(interaction) {
+  if (interaction.isAutocomplete()) {
+    if (interaction.commandName === 'delmarket') await handleMarketAutocomplete(interaction);
+    return;
+  }
+
   if (interaction.isChatInputCommand()) {
     await handleCommand(interaction);
+    return;
+  }
+
+  if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith('market:')) {
+    await handleMarketInteraction(interaction);
     return;
   }
 

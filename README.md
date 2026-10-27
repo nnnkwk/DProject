@@ -1,4 +1,4 @@
-# Discord Bot
+# Discord Role Request Bot
 
 Discord-бот для одного сервера на **discord.js v14** и **MySQL/MariaDB**: запросы ролей, учёт и архив модераторов, наказания, система обращений (тикеты) и система уровней.
 
@@ -11,6 +11,8 @@ Discord-бот для одного сервера на **discord.js v14** и **M
 | **Наказания** | `/ban`, `/unban`, `/mute`, `/unmute`, `/kick` с историей в БД и автоматическим снятием временных банов. |
 | **Тикеты** | Обращения через кнопку и модальное окно, отдельный канал на каждое обращение, передача командам, архив переписки. |
 | **Уровни** | EXP за сообщения и голосовые каналы, роли за уровни, топ участников, карточка `/rank`. |
+| **Экономика** | Валюта «Нефриты», выдача и снятие командой `/nefrit`, профиль участника `/profile`. |
+| **Магазин** | Товары за Нефриты: `/addmarket` добавляет товар, сообщение магазина в канале обновляется автоматически, покупка по кнопке. |
 | **Доступ к командам** | Права по должностям настраиваются в БД (таблица `commands_access`). |
 
 ## Стек
@@ -40,6 +42,8 @@ Discord-бот для одного сервера на **discord.js v14** и **M
 │   ├── tickets.js           # система обращений
 │   ├── ticket-teams.js
 │   ├── levels.js            # EXP, уровни, роли за уровни
+│   ├── economy.js           # Нефриты и /profile
+│   ├── market.js            # магазин: /addmarket, /delmarket, покупка
 │   ├── rank-card.js         # карточка /rank
 │   ├── archive-migration.js
 │   └── database.js          # работа с БД
@@ -97,7 +101,7 @@ cp .env.example .env
 
 ```sh
 npm install
-npm run deploy:commands
+npm run deploy:commands   # регистрация slash-команд на сервере
 npm start
 ```
 
@@ -125,6 +129,11 @@ ON DUPLICATE KEY UPDATE
 | `moderator_forum_channel_id` | форум-канал с архивами модераторов |
 | `main_chat_id` | главный чат: считаются сообщения для `/stats` и EXP |
 | `level_notify_channel` | канал уведомлений о повышении уровня |
+| `market_channel_id` | канал, где бот публикует сообщение магазина |
+| `market_message_id` | ID сообщения магазина (заполняется ботом автоматически) |
+| `market_log_channel_id` | канал, куда бот отправляет эмбед о каждой покупке |
+| `ban_log_channel_id` / `mute_log_channel_id` / `kick_log_channel_id` | каналы логов выданных банов, мутов и киков |
+| `economy_log_channel` | канал логов экономики: Нефриты, EXP и уровни |
 | `ticket_channel_id` | канал с кнопкой «Создать обращение» |
 | `tickets_opened_category_id` / `tickets_held_category_id` / `tickets_closed_category_id` | категории открытых, закреплённых и закрытых обращений |
 | `tickets_archive_channel_id` | канал архива переписок |
@@ -176,7 +185,8 @@ INSERT INTO moderator_position_roles (position_key, discord_role_id) VALUES
 | `/stats`, `/mute`, `/unmute`, `/kick` | moderator и выше |
 | `/hold`, `/close`, `/pass` | senior_moderator, moderation_curator, deputy_head_moderator, head_moderator, discord_administrator, technical_moderator |
 | `/exp`, `/lvl` | moderation_curator, deputy_head_moderator, head_moderator, discord_administrator |
-| `/rank`, `/leaders` | все участники |
+| `/nefrit`, `/addmarket`, `/delmarket` | moderation_curator, deputy_head_moderator, head_moderator, discord_administrator |
+| `/rank`, `/leaders`, `/profile` | все участники |
 
 Изменить права можно запросами:
 
@@ -212,6 +222,18 @@ DELETE FROM commands_access WHERE command = 'ban' AND moderator_role = 'senior_m
 | `/kick` | `user`, `reason` |
 
 Формат срока: `30m`, `2h`, `7d`, `1w`, составной `1d12h` (также `мин`, `ч`, `д`, `н`). Для `/ban` допустимо `навсегда`. Максимум для `/mute` — 28 дней. Временные баны снимаются автоматически (проверка при запуске и раз в минуту). Перед наказанием бот отправляет участнику сообщение с причиной, если ЛС открыты.
+
+**Логи наказаний.** Каждый выданный бан, мут и кик дублируется эмбедом в свой канал (необязательно, можно задать только часть):
+
+```sql
+UPDATE bot_settings SET
+  ban_log_channel_id = 'BAN_LOG_CHANNEL_ID',
+  mute_log_channel_id = 'MUTE_LOG_CHANNEL_ID',
+  kick_log_channel_id = 'KICK_LOG_CHANNEL_ID'
+WHERE id = 1;
+```
+
+В лог попадают пользователь, модератор, срок, причина и дата. Если канал не задан, запись просто не отправляется.
 
 ### Тикеты
 
@@ -264,6 +286,48 @@ INSERT INTO level_roles (level, role_id) VALUES
 ```
 
 При `keep_previous_roles = FALSE` остаётся только роль наивысшего достигнутого уровня, при `TRUE` роли накапливаются.
+
+### Экономика
+
+Валюта — **Нефриты**. Баланс хранится в таблице `user_economy`, каждое изменение записывается в `economy_transactions` (кто, кому, сколько, причина, баланс после).
+
+| Команда | Описание |
+| --- | --- |
+| `/nefrit user amount [reason]` | Выдаёт (`amount > 0`) или снимает (`amount < 0`) Нефриты. Баланс не может стать меньше нуля — в этом случае бот сообщает текущий баланс и ничего не меняет. |
+| `/profile [user]` | Профиль участника (свой или указанного). Пока показывает только количество Нефритов. |
+
+### Магазин
+
+| Команда | Описание |
+| --- | --- |
+| `/addmarket name price` | Добавляет товар: название (до 80 символов, уникальное) и цена в Нефритах. Сообщение магазина в канале обновляется сразу. Максимум 25 товаров (лимит меню выбора Discord). |
+| `/delmarket item` | Удаляет товар из магазина. Товар выбирается из подсказок (автодополнение по названию). Сообщение магазина обновляется сразу, история покупок сохраняется. |
+
+Укажите канал магазина:
+
+```sql
+UPDATE bot_settings SET market_channel_id = 'MARKET_CHANNEL_ID' WHERE id = 1;
+```
+
+Бот публикует эмбед со списком товаров и кнопкой «Купить» при запуске и при каждом `/addmarket`, а при повторных запусках редактирует то же сообщение (если его удалить, опубликует заново).
+
+Канал оповещений о покупках (необязательно):
+
+```sql
+UPDATE bot_settings SET market_log_channel_id = 'LOG_CHANNEL_ID' WHERE id = 1;
+```
+
+**Покупка:** кнопка «Купить» → меню выбора товара (видно только покупателю, с его балансом) → подтверждение → Нефриты списываются, покупка записывается в `market_purchases` и в `economy_transactions`. Если Нефритов не хватает, подтвердить покупку нельзя. После покупки в канал `market_log_channel_id` приходит эмбед: покупатель, товар и стоимость.
+
+**Логи экономики.** Выдача и снятие Нефритов (`/nefrit`), изменение EXP (`/exp`) и уровней (`/lvl`) записываются эмбедом в один канал:
+
+```sql
+UPDATE bot_settings SET economy_log_channel = 'ECONOMY_LOG_CHANNEL_ID' WHERE id = 1;
+```
+
+В логе: пользователь, модератор, изменение, значения до и после, причина (для Нефритов) и дата. Покупки в магазине в этот канал не попадают — у них свой лог (`market_log_channel_id`).
+
+Для существующей базы один раз импортируйте `economy-migration.sql`, затем выполните `npm run deploy:commands` и перезапустите бота.
 
 ## Деплой на VPS (Debian/Ubuntu + systemd)
 

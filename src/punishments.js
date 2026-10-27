@@ -1,6 +1,7 @@
 import { EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import {
   deactivateBanRecord,
+  getBotSettings,
   getExpiredBans,
   recordModerationAction,
 } from './database.js';
@@ -81,8 +82,29 @@ function resultEmbed(title, interaction, user, fields) {
     .setFooter({ text: guild.name, iconURL: guild.iconURL() ?? undefined });
 }
 
-async function announce(interaction, embed) {
+// Каналы логов наказаний хранятся в bot_settings (по одному на тип наказания).
+const LOG_CHANNEL_COLUMNS = {
+  ban: 'ban_log_channel_id',
+  mute: 'mute_log_channel_id',
+  kick: 'kick_log_channel_id',
+};
+
+async function logPunishment(interaction, action, embed) {
+  try {
+    const settings = await getBotSettings();
+    const channelId = settings?.[LOG_CHANNEL_COLUMNS[action]];
+    if (!channelId || channelId === interaction.channelId) return;
+    const channel = await interaction.client.channels.fetch(channelId);
+    if (!channel?.isTextBased() || channel.isDMBased()) return;
+    await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+  } catch (error) {
+    console.error(`Could not send ${action} log:`, error);
+  }
+}
+
+async function announce(interaction, embed, logAction) {
   await interaction.editReply({ embeds: [embed] });
+  if (logAction) await logPunishment(interaction, logAction, embed);
 }
 
 async function fail(interaction, content) {
@@ -211,6 +233,7 @@ async function handleBan(interaction) {
       { name: 'Сообщения за 3 дня', value: clearMessages ? 'Удалены' : 'Не удалялись' },
       { name: 'Причина', value: reason },
     ]),
+    'ban',
   );
 }
 
@@ -309,6 +332,7 @@ async function handleMute(interaction) {
       { name: 'Истекает', value: discordTime(expiresAtMs) },
       { name: 'Причина', value: reason },
     ]),
+    'mute',
   );
 }
 
@@ -393,6 +417,7 @@ async function handleKick(interaction) {
     resultEmbed('Кик пользователя', interaction, user, [
       { name: 'Причина', value: reason },
     ]),
+    'kick',
   );
 }
 

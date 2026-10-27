@@ -17,6 +17,7 @@ import {
   getUserRank,
   updateUserLevel,
 } from './database.js';
+import { logEconomyAction } from './economy.js';
 import { renderRankCard } from './rank-card.js';
 
 export const LEVEL_COMMANDS = new Set(['exp', 'lvl', 'leaders', 'rank']);
@@ -374,6 +375,15 @@ export async function handleLevelCommand(interaction) {
     member,
     (state) => (isExp ? applyExpDelta(state, amount) : applyLevelDelta(state, amount)),
   );
+  await logEconomyAction(interaction, {
+    title: isExp ? 'Изменение EXP' : 'Изменение уровня',
+    user,
+    fields: [
+      { name: 'Изменение', value: `${amount > 0 ? '+' : ''}${amount}${isExp ? ' EXP' : ' ур.'}` },
+      { name: 'Было', value: describeState(before), inline: true },
+      { name: 'Стало', value: describeState(after), inline: true },
+    ],
+  });
   await interaction.editReply({
     content: `${isExp ? 'EXP' : 'Уровень'} ${member} изменён на ${amount > 0 ? '+' : ''}${amount}.\n`
       + `Было: ${describeState(before)}\nСтало: ${describeState(after)}`,

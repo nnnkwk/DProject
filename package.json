@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy:commands": "node deploy-commands.js",
-    "check": "node --check src/index.js && node --check src/command-definitions.js && node --check src/commands.js && node --check src/command-access.js && node --check src/interactions.js && node --check src/moderation-panel.js && node --check src/moderators.js && node --check src/moderator-positions.js && node --check src/punishments.js && node --check src/tickets.js && node --check src/levels.js && node --check src/archive-migration.js && node --check src/rank-card.js && node --check src/ticket-teams.js && node --check src/database.js && node --check deploy-commands.js"
+    "check": "node --check src/index.js && node --check src/command-definitions.js && node --check src/commands.js && node --check src/command-access.js && node --check src/interactions.js && node --check src/moderation-panel.js && node --check src/moderators.js && node --check src/moderator-positions.js && node --check src/punishments.js && node --check src/tickets.js && node --check src/levels.js && node --check src/economy.js && node --check src/market.js && node --check src/archive-migration.js && node --check src/rank-card.js && node --check src/ticket-teams.js && node --check src/database.js && node --check deploy-commands.js"
   },
   "dependencies": {
     "discord.js": "^14.21.0",

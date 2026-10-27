@@ -1,6 +1,8 @@
 import { MessageFlags } from 'discord.js';
 import { denyCommandAccess, hasCommandAccess } from './command-access.js';
+import { ECONOMY_COMMANDS, handleEconomyCommand, PUBLIC_ECONOMY_COMMANDS } from './economy.js';
 import { handleLevelCommand, LEVEL_COMMANDS, PUBLIC_LEVEL_COMMANDS } from './levels.js';
+import { handleMarketCommand, MARKET_COMMANDS } from './market.js';
 import { handleModeratorCommand } from './moderators.js';
 import { handlePunishmentCommand, PUNISHMENT_COMMANDS } from './punishments.js';
 import { handleTicketCommand, TICKET_COMMANDS } from './tickets.js';
@@ -19,11 +21,14 @@ export async function handleCommand(interaction) {
   const isPunishment = PUNISHMENT_COMMANDS.has(interaction.commandName);
   const isTicket = TICKET_COMMANDS.has(interaction.commandName);
   const isLevel = LEVEL_COMMANDS.has(interaction.commandName);
-  const isOpenCommand = PUBLIC_LEVEL_COMMANDS.has(interaction.commandName);
+  const isEconomy = ECONOMY_COMMANDS.has(interaction.commandName);
+  const isMarket = MARKET_COMMANDS.has(interaction.commandName);
+  const isOpenCommand = PUBLIC_LEVEL_COMMANDS.has(interaction.commandName)
+    || PUBLIC_ECONOMY_COMMANDS.has(interaction.commandName);
   const isPublicReply = isPunishment || isTicket || isOpenCommand;
-  if (!isPublicReply && !isLevel && !MODERATOR_COMMANDS.has(interaction.commandName)) {
+  if (!isPublicReply && !isLevel && !isEconomy && !isMarket && !MODERATOR_COMMANDS.has(interaction.commandName)) {
     await interaction.reply({
-      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders и /rank.',
+      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders, /rank, /nefrit, /profile, /addmarket и /delmarket.',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -44,6 +49,10 @@ export async function handleCommand(interaction) {
     await handleTicketCommand(interaction);
   } else if (isLevel) {
     await handleLevelCommand(interaction);
+  } else if (isEconomy) {
+    await handleEconomyCommand(interaction);
+  } else if (isMarket) {
+    await handleMarketCommand(interaction);
   } else {
     await handleModeratorCommand(interaction);
   }

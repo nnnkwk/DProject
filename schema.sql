@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS discord_bot
+CREATE DATABASE IF NOT EXISTS discord_role_requests
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 USE discord_role_requests;
@@ -15,10 +15,18 @@ CREATE TABLE IF NOT EXISTS bot_settings (
   tickets_archive_channel_id VARCHAR(20) NULL,
   level_notify_channel VARCHAR(20) NULL,
   main_chat_id VARCHAR(20) NULL,
+  market_channel_id VARCHAR(20) NULL,
+  market_message_id VARCHAR(20) NULL,
+  market_log_channel_id VARCHAR(20) NULL,
+  ban_log_channel_id VARCHAR(20) NULL,
+  mute_log_channel_id VARCHAR(20) NULL,
+  kick_log_channel_id VARCHAR(20) NULL,
+  economy_log_channel VARCHAR(20) NULL,
   archive_embeds_version TINYINT UNSIGNED NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- These are game/community servers shown in the request menu, not Discord guilds.
 CREATE TABLE IF NOT EXISTS role_servers (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -133,6 +141,7 @@ CREATE TABLE IF NOT EXISTS commands_access (
   PRIMARY KEY (command, moderator_role)
 ) ENGINE=InnoDB;
 
+-- Кто может использовать команду: одна строка = команда + должность (position_key из moderator_position_roles).
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('setmoder', 'moderation_curator'),
   ('setmoder', 'deputy_head_moderator'),
@@ -201,6 +210,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   KEY ix_tickets_status_closed (status, closed_at)
 ) ENGINE=InnoDB;
 
+-- Доступ к командам обращений (position_key из moderator_position_roles).
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('hold', 'senior_moderator'),
   ('hold', 'moderation_curator'),
@@ -240,24 +250,90 @@ CREATE TABLE IF NOT EXISTS level_settings (
 
 INSERT IGNORE INTO level_settings (id) VALUES (1);
 
+-- Роли за уровни: одна строка = уровень и роль, которая выдаётся при его достижении.
 CREATE TABLE IF NOT EXISTS level_roles (
   level INT UNSIGNED NOT NULL PRIMARY KEY,
   role_id VARCHAR(20) NOT NULL,
   UNIQUE KEY uq_level_roles_role (role_id)
 ) ENGINE=InnoDB;
 
+-- Доступ к /exp и /lvl (position_key из moderator_position_roles). /leaders и /rank доступны всем.
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('exp', 'moderation_curator'), ('exp', 'deputy_head_moderator'), ('exp', 'head_moderator'), ('exp', 'discord_administrator'),
   ('lvl', 'moderation_curator'), ('lvl', 'deputy_head_moderator'), ('lvl', 'head_moderator'), ('lvl', 'discord_administrator');
 
+-- Доступ к /uplvl (position_key из moderator_position_roles).
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('uplvl', 'technical_moderator'),
   ('uplvl', 'discord_administrator'),
   ('uplvl', 'head_moderator'),
   ('uplvl', 'deputy_head_moderator');
 
+-- Доступ к /setpoints (position_key из moderator_position_roles).
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('setpoints', 'moderation_curator'),
   ('setpoints', 'deputy_head_moderator'),
   ('setpoints', 'head_moderator'),
   ('setpoints', 'discord_administrator');
+
+-- Экономика: валюта «Нефриты».
+CREATE TABLE IF NOT EXISTS user_economy (
+  user_id VARCHAR(20) NOT NULL PRIMARY KEY,
+  nefrits BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- История выдачи и снятия Нефритов.
+CREATE TABLE IF NOT EXISTS economy_transactions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(20) NOT NULL,
+  amount BIGINT NOT NULL,
+  balance_after BIGINT UNSIGNED NOT NULL,
+  actor_id VARCHAR(20) NOT NULL,
+  reason VARCHAR(1000) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY ix_economy_user (user_id, created_at)
+) ENGINE=InnoDB;
+
+-- Доступ к /nefrit (position_key из moderator_position_roles). /profile доступна всем.
+INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
+  ('nefrit', 'moderation_curator'),
+  ('nefrit', 'deputy_head_moderator'),
+  ('nefrit', 'head_moderator'),
+  ('nefrit', 'discord_administrator');
+
+-- Магазин: товары, которые покупаются за Нефриты.
+CREATE TABLE IF NOT EXISTS market_items (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  price BIGINT UNSIGNED NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_market_item_name (name)
+) ENGINE=InnoDB;
+
+-- История покупок.
+CREATE TABLE IF NOT EXISTS market_purchases (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(20) NOT NULL,
+  item_id INT UNSIGNED NOT NULL,
+  item_name VARCHAR(80) NOT NULL,
+  price BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY ix_market_purchases_user (user_id, created_at)
+) ENGINE=InnoDB;
+
+-- Доступ к /addmarket (position_key из moderator_position_roles).
+INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
+  ('addmarket', 'moderation_curator'),
+  ('addmarket', 'deputy_head_moderator'),
+  ('addmarket', 'head_moderator'),
+  ('addmarket', 'discord_administrator');
+
+-- Доступ к /delmarket.
+INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
+  ('delmarket', 'moderation_curator'),
+  ('delmarket', 'deputy_head_moderator'),
+  ('delmarket', 'head_moderator'),
+  ('delmarket', 'discord_administrator');

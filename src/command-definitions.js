@@ -224,4 +224,49 @@ export const commandData = [
     .addUserOption((option) => option
       .setName('user')
       .setDescription('Участник (по умолчанию вы)')),
+  new SlashCommandBuilder()
+    .setName('nefrit')
+    .setDescription('Выдать или снять Нефриты')
+    .addUserOption((option) => option
+      .setName('user')
+      .setDescription('Участник')
+      .setRequired(true))
+    .addIntegerOption((option) => option
+      .setName('amount')
+      .setDescription('Сколько Нефритов выдать или снять (например, 100 или -100)')
+      .setMinValue(-1000000)
+      .setMaxValue(1000000)
+      .setRequired(true))
+    .addStringOption((option) => option
+      .setName('reason')
+      .setDescription('Причина (необязательно)')
+      .setMaxLength(1000)),
+  new SlashCommandBuilder()
+    .setName('addmarket')
+    .setDescription('Добавить товар в магазин')
+    .addStringOption((option) => option
+      .setName('name')
+      .setDescription('Название товара')
+      .setMaxLength(80)
+      .setRequired(true))
+    .addIntegerOption((option) => option
+      .setName('price')
+      .setDescription('Стоимость в Нефритах')
+      .setMinValue(1)
+      .setMaxValue(1000000000)
+      .setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('delmarket')
+    .setDescription('Удалить товар из магазина')
+    .addStringOption((option) => option
+      .setName('item')
+      .setDescription('Товар (выберите из списка)')
+      .setAutocomplete(true)
+      .setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('profile')
+    .setDescription('Показать профиль участника')
+    .addUserOption((option) => option
+      .setName('user')
+      .setDescription('Участник (по умолчанию вы)')),
 ].map((command) => command.toJSON());

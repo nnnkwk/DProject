@@ -804,3 +804,110 @@ export async function getModeratorArchiveThreads() {
 export async function setArchiveEmbedsVersion(version) {
   await pool.execute('UPDATE bot_settings SET archive_embeds_version = ? WHERE id = 1', [version]);
 }
+
+export async function getNefrits(userId) {
+  const [rows] = await pool.execute('SELECT nefrits FROM user_economy WHERE user_id = ?', [userId]);
+  return rows[0] ? Number(rows[0].nefrits) : 0;
+}
+
+// Меняет баланс Нефритов в транзакции. Если итог ушёл бы ниже нуля, ничего не меняет.
+export async function changeNefrits(userId, delta, actorId, reason) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute('INSERT IGNORE INTO user_economy (user_id) VALUES (?)', [userId]);
+    const [rows] = await connection.execute('SELECT nefrits FROM user_economy WHERE user_id = ? FOR UPDATE', [userId]);
+    const before = Number(rows[0].nefrits);
+    const after = before + delta;
+    if (after < 0) {
+      await connection.rollback();
+      return { ok: false, before, after: before };
+    }
+    await connection.execute('UPDATE user_economy SET nefrits = ? WHERE user_id = ?', [after, userId]);
+    await connection.execute(
+      'INSERT INTO economy_transactions (user_id, amount, balance_after, actor_id, reason) VALUES (?, ?, ?, ?, ?)',
+      [userId, delta, after, actorId, reason || null],
+    );
+    await connection.commit();
+    return { ok: true, before, after };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function saveMarketMessageId(messageId) {
+  await pool.execute(
+    `INSERT INTO bot_settings (id, market_message_id) VALUES (1, ?)
+     ON DUPLICATE KEY UPDATE market_message_id = VALUES(market_message_id)`,
+    [messageId],
+  );
+}
+
+export async function getMarketItems() {
+  const [rows] = await pool.execute('SELECT id, name, price FROM market_items WHERE active = TRUE ORDER BY id');
+  return rows.map((row) => ({ id: Number(row.id), name: row.name, price: Number(row.price) }));
+}
+
+export async function getMarketItem(itemId) {
+  const [rows] = await pool.execute('SELECT id, name, price FROM market_items WHERE id = ? AND active = TRUE', [itemId]);
+  return rows[0] ? { id: Number(rows[0].id), name: rows[0].name, price: Number(rows[0].price) } : null;
+}
+
+export async function addMarketItem(name, price, createdBy) {
+  const [result] = await pool.execute(
+    'INSERT INTO market_items (name, price, created_by) VALUES (?, ?, ?)',
+    [name, price, createdBy],
+  );
+  return Number(result.insertId);
+}
+
+// Покупка в одной транзакции: проверка товара, баланса, списание Нефритов и запись истории.
+export async function purchaseMarketItem(userId, itemId) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [items] = await connection.execute(
+      'SELECT id, name, price FROM market_items WHERE id = ? AND active = TRUE',
+      [itemId],
+    );
+    if (!items[0]) {
+      await connection.rollback();
+      return { status: 'missing' };
+    }
+    const item = { id: Number(items[0].id), name: items[0].name, price: Number(items[0].price) };
+
+    await connection.execute('INSERT IGNORE INTO user_economy (user_id) VALUES (?)', [userId]);
+    const [rows] = await connection.execute('SELECT nefrits FROM user_economy WHERE user_id = ? FOR UPDATE', [userId]);
+    const before = Number(rows[0].nefrits);
+    if (before < item.price) {
+      await connection.rollback();
+      return { status: 'insufficient', item, balance: before };
+    }
+
+    const after = before - item.price;
+    await connection.execute('UPDATE user_economy SET nefrits = ? WHERE user_id = ?', [after, userId]);
+    await connection.execute(
+      'INSERT INTO economy_transactions (user_id, amount, balance_after, actor_id, reason) VALUES (?, ?, ?, ?, ?)',
+      [userId, -item.price, after, userId, `Покупка: ${item.name}`],
+    );
+    await connection.execute(
+      'INSERT INTO market_purchases (user_id, item_id, item_name, price) VALUES (?, ?, ?, ?)',
+      [userId, item.id, item.name, item.price],
+    );
+    await connection.commit();
+    return { status: 'ok', item, before, after };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function deleteMarketItem(itemId) {
+  const [result] = await pool.execute('DELETE FROM market_items WHERE id = ?', [itemId]);
+  return result.affectedRows > 0;
+}
