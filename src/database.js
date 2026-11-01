@@ -810,7 +810,6 @@ export async function getNefrits(userId) {
   return rows[0] ? Number(rows[0].nefrits) : 0;
 }
 
-// Меняет баланс Нефритов в транзакции. Если итог ушёл бы ниже нуля, ничего не меняет.
 export async function changeNefrits(userId, delta, actorId, reason) {
   const connection = await pool.getConnection();
   try {
@@ -864,7 +863,6 @@ export async function addMarketItem(name, price, createdBy) {
   return Number(result.insertId);
 }
 
-// Покупка в одной транзакции: проверка товара, баланса, списание Нефритов и запись истории.
 export async function purchaseMarketItem(userId, itemId) {
   const connection = await pool.getConnection();
   try {
@@ -911,8 +909,6 @@ export async function deleteMarketItem(itemId) {
   const [result] = await pool.execute('DELETE FROM market_items WHERE id = ?', [itemId]);
   return result.affectedRows > 0;
 }
-
-// ---------- Семьи ----------
 
 export async function createFamily(name, leaderId, createdBy, maxOwned) {
   const connection = await pool.getConnection();
@@ -966,7 +962,6 @@ export async function searchFamilies(query) {
   return rows;
 }
 
-// Семьи, где пользователь лидер или заместитель (может приглашать).
 export async function getInvitableFamilies(userId, query) {
   const [rows] = await pool.execute(
     `SELECT f.id, f.name FROM families f

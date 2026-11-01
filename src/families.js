@@ -23,20 +23,17 @@ import {
 } from './database.js';
 
 export const FAMILY_COMMANDS = new Set(['createfam', 'faminfo', 'faminvite']);
-// Команды без проверки доступа по должностям (/createfam проверяется через commands_access).
 export const OPEN_FAMILY_COMMANDS = new Set(['faminfo', 'faminvite']);
 
 const EMBED_COLOR = 0x3498db;
 const INVITE_TTL_SECONDS = 24 * 60 * 60;
 const NO_MENTIONS = { parse: [] };
 
-// Сколько семей пользователь может возглавлять. Здесь позже подключатся бонусы.
 const DEFAULT_OWNED_FAMILIES = 1;
 function ownedFamiliesLimit() {
   return DEFAULT_OWNED_FAMILIES;
 }
 
-// Ошибка видна только вызвавшему: публичный ответ удаляется, пользователю уходит скрытое сообщение.
 async function fail(interaction, content) {
   await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
   await interaction.deleteReply().catch(() => {});

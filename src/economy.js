@@ -23,7 +23,6 @@ function userLine(user) {
   return `${user.id} | <@${user.id}>`;
 }
 
-// Лог экономических действий модераторов в канал economy_log_channel (если задан).
 export async function logEconomyAction(interaction, { title, user, fields }) {
   try {
     const settings = await getBotSettings();

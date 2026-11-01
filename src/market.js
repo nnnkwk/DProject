@@ -24,7 +24,7 @@ const BUY_BUTTON_ID = 'market:buy';
 const SELECT_ID = 'market:select';
 const CONFIRM_PREFIX = 'market:confirm:';
 const CANCEL_ID = 'market:cancel';
-const MAX_ITEMS = 25; // лимит Discord на варианты в меню выбора
+const MAX_ITEMS = 25;
 const UNKNOWN_MESSAGE_CODE = 10008;
 const EMBED_COLOR = 0x2ecc71;
 const purchasesInProgress = new Set();
@@ -46,7 +46,6 @@ function buildMarketMessage(items) {
   return { embeds: [embed], components: [new ActionRowBuilder().addComponents(button)] };
 }
 
-// Публикует сообщение магазина или редактирует уже опубликованное.
 export async function refreshMarketMessage(client) {
   const settings = await getBotSettings();
   if (!settings?.market_channel_id) return { published: false, reason: 'no_channel' };
@@ -208,7 +207,6 @@ async function showConfirmation(interaction) {
   });
 }
 
-// Красивое оповещение о покупке в канал market_log_channel_id (если он задан).
 async function announcePurchase(interaction, item) {
   try {
     const settings = await getBotSettings();
