@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Discord Role Request Bot
-=======
 # DProject
->>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
 
 Discord-бот для одного сервера на **discord.js v14** и **MySQL/MariaDB**: запросы ролей, учёт и архив модераторов, наказания, система обращений (тикеты) и система уровней.
 
