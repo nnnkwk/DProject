@@ -1,6 +1,7 @@
 import { MessageFlags } from 'discord.js';
 import { denyCommandAccess, hasCommandAccess } from './command-access.js';
 import { ECONOMY_COMMANDS, handleEconomyCommand, PUBLIC_ECONOMY_COMMANDS } from './economy.js';
+import { FAMILY_COMMANDS, handleFamilyCommand, OPEN_FAMILY_COMMANDS } from './families.js';
 import { handleLevelCommand, LEVEL_COMMANDS, PUBLIC_LEVEL_COMMANDS } from './levels.js';
 import { handleMarketCommand, MARKET_COMMANDS } from './market.js';
 import { handleModeratorCommand } from './moderators.js';
@@ -23,12 +24,14 @@ export async function handleCommand(interaction) {
   const isLevel = LEVEL_COMMANDS.has(interaction.commandName);
   const isEconomy = ECONOMY_COMMANDS.has(interaction.commandName);
   const isMarket = MARKET_COMMANDS.has(interaction.commandName);
+  const isFamily = FAMILY_COMMANDS.has(interaction.commandName);
   const isOpenCommand = PUBLIC_LEVEL_COMMANDS.has(interaction.commandName)
-    || PUBLIC_ECONOMY_COMMANDS.has(interaction.commandName);
-  const isPublicReply = isPunishment || isTicket || isOpenCommand;
+    || PUBLIC_ECONOMY_COMMANDS.has(interaction.commandName)
+    || OPEN_FAMILY_COMMANDS.has(interaction.commandName);
+  const isPublicReply = isPunishment || isTicket || isFamily || isOpenCommand;
   if (!isPublicReply && !isLevel && !isEconomy && !isMarket && !MODERATOR_COMMANDS.has(interaction.commandName)) {
     await interaction.reply({
-      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders, /rank, /nefrit, /profile, /addmarket и /delmarket.',
+      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders, /rank, /nefrit, /profile, /addmarket, /delmarket, /createfam, /faminfo и /faminvite.',
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -53,6 +56,8 @@ export async function handleCommand(interaction) {
     await handleEconomyCommand(interaction);
   } else if (isMarket) {
     await handleMarketCommand(interaction);
+  } else if (isFamily) {
+    await handleFamilyCommand(interaction);
   } else {
     await handleModeratorCommand(interaction);
   }

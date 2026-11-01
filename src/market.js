@@ -16,7 +16,7 @@ import {
   purchaseMarketItem,
   saveMarketMessageId,
 } from './database.js';
-import { CURRENCY_NAME, formatNefrits } from './economy.js';
+import { CURRENCY_EMOJI, CURRENCY_NAME, formatNefrits, formatNumber } from './economy.js';
 
 export const MARKET_COMMANDS = new Set(['addmarket', 'delmarket']);
 
@@ -175,7 +175,7 @@ async function showItemSelect(interaction) {
     .setPlaceholder('Выберите товар')
     .addOptions(items.map((item) => ({
       label: truncate(item.name, 100),
-      description: formatNefrits(item.price).replace(/^\S+ /, `${CURRENCY_NAME}: `),
+      description: `${CURRENCY_NAME}: ${formatNumber(item.price)}`,
       value: String(item.id),
     })));
   await interaction.editReply({
@@ -253,7 +253,7 @@ async function completePurchase(interaction) {
   }
   if (result.status === 'insufficient') {
     await interaction.editReply({
-      content: `Недостаточно Нефритов: нужно ${formatNefrits(result.item.price)}, у вас ${formatNefrits(result.balance)}.`,
+      content: `Недостаточно Нефритов ${CURRENCY_EMOJI}: нужно ${formatNefrits(result.item.price)}, у вас ${formatNefrits(result.balance)}.`,
       components: [],
     });
     return;

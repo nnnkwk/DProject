@@ -7,10 +7,11 @@ import { getMoscowWeekStart } from './moderators.js';
 import { PUNISHMENT_COMMANDS, startTempBanScheduler } from './punishments.js';
 import { handleMessageExp, isMainChatMessage, PUBLIC_LEVEL_COMMANDS, startVoiceExpTracker } from './levels.js';
 import { PUBLIC_ECONOMY_COMMANDS } from './economy.js';
+import { FAMILY_COMMANDS } from './families.js';
 import { ensureMarketPanel } from './market.js';
 import { ensureTicketPanel, startTicketScheduler, TICKET_COMMANDS } from './tickets.js';
 
-const PUBLIC_REPLY_COMMANDS = new Set([...PUNISHMENT_COMMANDS, ...TICKET_COMMANDS, ...PUBLIC_LEVEL_COMMANDS, ...PUBLIC_ECONOMY_COMMANDS]);
+const PUBLIC_REPLY_COMMANDS = new Set([...PUNISHMENT_COMMANDS, ...TICKET_COMMANDS, ...PUBLIC_LEVEL_COMMANDS, ...PUBLIC_ECONOMY_COMMANDS, ...FAMILY_COMMANDS]);
 
 const targetGuildId = process.env.DISCORD_GUILD_ID?.trim();
 if (!process.env.DISCORD_TOKEN || !targetGuildId) {

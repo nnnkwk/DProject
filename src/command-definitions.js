@@ -269,4 +269,36 @@ export const commandData = [
     .addUserOption((option) => option
       .setName('user')
       .setDescription('Участник (по умолчанию вы)')),
+  new SlashCommandBuilder()
+    .setName('createfam')
+    .setDescription('Создать семью')
+    .addStringOption((option) => option
+      .setName('name')
+      .setDescription('Название семьи')
+      .setMinLength(2)
+      .setMaxLength(32)
+      .setRequired(true))
+    .addUserOption((option) => option
+      .setName('leader')
+      .setDescription('Лидер семьи')
+      .setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('faminfo')
+    .setDescription('Информация о семье')
+    .addStringOption((option) => option
+      .setName('family')
+      .setDescription('Семья (по умолчанию ваша)')
+      .setAutocomplete(true)),
+  new SlashCommandBuilder()
+    .setName('faminvite')
+    .setDescription('Пригласить участника в семью')
+    .addUserOption((option) => option
+      .setName('member')
+      .setDescription('Кого пригласить')
+      .setRequired(true))
+    .addStringOption((option) => option
+      .setName('family')
+      .setDescription('Семья, в которую приглашаете')
+      .setAutocomplete(true)
+      .setRequired(true)),
 ].map((command) => command.toJSON());

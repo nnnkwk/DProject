@@ -911,3 +911,147 @@ export async function deleteMarketItem(itemId) {
   const [result] = await pool.execute('DELETE FROM market_items WHERE id = ?', [itemId]);
   return result.affectedRows > 0;
 }
+
+// ---------- Семьи ----------
+
+export async function createFamily(name, leaderId, createdBy, maxOwned) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [owned] = await connection.execute('SELECT COUNT(*) AS total FROM families WHERE leader_id = ?', [leaderId]);
+    if (Number(owned[0].total) >= maxOwned) {
+      await connection.rollback();
+      return { ok: false, reason: 'leader_limit' };
+    }
+    const [result] = await connection.execute(
+      'INSERT INTO families (name, leader_id, created_by) VALUES (?, ?, ?)',
+      [name, leaderId, createdBy],
+    );
+    await connection.execute(
+      "INSERT INTO family_members (family_id, user_id, role) VALUES (?, ?, 'leader')",
+      [result.insertId, leaderId],
+    );
+    await connection.commit();
+    return { ok: true, id: result.insertId };
+  } catch (error) {
+    await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') return { ok: false, reason: 'name_taken' };
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+const FAMILY_COLUMNS = 'id, name, leader_id, UNIX_TIMESTAMP(created_at) AS created_ts';
+
+export async function getFamily(familyId) {
+  const [rows] = await pool.execute(`SELECT ${FAMILY_COLUMNS} FROM families WHERE id = ?`, [familyId]);
+  return rows[0] ?? null;
+}
+
+export async function getFamilyByName(name) {
+  const [rows] = await pool.execute(`SELECT ${FAMILY_COLUMNS} FROM families WHERE name = ?`, [name]);
+  return rows[0] ?? null;
+}
+
+function likePattern(query) {
+  return `%${query.replace(/[\\%_]/g, '\\$&')}%`;
+}
+
+export async function searchFamilies(query) {
+  const [rows] = await pool.execute(
+    'SELECT id, name FROM families WHERE name LIKE ? ORDER BY name LIMIT 25',
+    [likePattern(query)],
+  );
+  return rows;
+}
+
+// Семьи, где пользователь лидер или заместитель (может приглашать).
+export async function getInvitableFamilies(userId, query) {
+  const [rows] = await pool.execute(
+    `SELECT f.id, f.name FROM families f
+     JOIN family_members m ON m.family_id = f.id
+     WHERE m.user_id = ? AND m.role IN ('leader', 'deputy') AND f.name LIKE ?
+     ORDER BY f.name LIMIT 25`,
+    [userId, likePattern(query)],
+  );
+  return rows;
+}
+
+export async function getUserFamilies(userId) {
+  const [rows] = await pool.execute(
+    `SELECT f.id, f.name, m.role FROM families f
+     JOIN family_members m ON m.family_id = f.id
+     WHERE m.user_id = ? ORDER BY f.name`,
+    [userId],
+  );
+  return rows;
+}
+
+export async function getFamilyMembers(familyId) {
+  const [rows] = await pool.execute(
+    'SELECT user_id, role FROM family_members WHERE family_id = ? ORDER BY joined_at, user_id',
+    [familyId],
+  );
+  return rows;
+}
+
+export async function getFamilyMemberRole(familyId, userId) {
+  const [rows] = await pool.execute(
+    'SELECT role FROM family_members WHERE family_id = ? AND user_id = ?',
+    [familyId, userId],
+  );
+  return rows[0]?.role ?? null;
+}
+
+export async function findPendingFamilyInvite(familyId, userId, ttlSeconds) {
+  const [rows] = await pool.execute(
+    `SELECT id FROM family_invites
+     WHERE family_id = ? AND user_id = ? AND TIMESTAMPDIFF(SECOND, created_at, NOW()) < ?`,
+    [familyId, userId, ttlSeconds],
+  );
+  return rows[0] ?? null;
+}
+
+export async function createFamilyInvite(familyId, userId, inviterId) {
+  await pool.execute('DELETE FROM family_invites WHERE family_id = ? AND user_id = ?', [familyId, userId]);
+  const [result] = await pool.execute(
+    'INSERT INTO family_invites (family_id, user_id, inviter_id) VALUES (?, ?, ?)',
+    [familyId, userId, inviterId],
+  );
+  return result.insertId;
+}
+
+export async function getFamilyInvite(inviteId) {
+  const [rows] = await pool.execute(
+    `SELECT i.id, i.family_id, i.user_id, i.inviter_id, f.name,
+            TIMESTAMPDIFF(SECOND, i.created_at, NOW()) AS age_seconds
+     FROM family_invites i JOIN families f ON f.id = i.family_id
+     WHERE i.id = ?`,
+    [inviteId],
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteFamilyInvite(inviteId) {
+  await pool.execute('DELETE FROM family_invites WHERE id = ?', [inviteId]);
+}
+
+export async function acceptFamilyInvite(invite) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.execute(
+      'INSERT IGNORE INTO family_members (family_id, user_id) VALUES (?, ?)',
+      [invite.family_id, invite.user_id],
+    );
+    await connection.execute('DELETE FROM family_invites WHERE id = ?', [invite.id]);
+    await connection.commit();
+    return { joined: result.affectedRows > 0 };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}

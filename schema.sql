@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 CREATE DATABASE IF NOT EXISTS discord_role_requests
-=======
-CREATE DATABASE IF NOT EXISTS DProject
->>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 USE discord_role_requests;
@@ -279,7 +275,6 @@ INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('setpoints', 'deputy_head_moderator'),
   ('setpoints', 'head_moderator'),
   ('setpoints', 'discord_administrator');
-<<<<<<< HEAD
 
 -- Экономика: валюта «Нефриты».
 CREATE TABLE IF NOT EXISTS user_economy (
@@ -342,5 +337,41 @@ INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('delmarket', 'deputy_head_moderator'),
   ('delmarket', 'head_moderator'),
   ('delmarket', 'discord_administrator');
-=======
->>>>>>> 96f1effa0965c9f1a4b4aaecc4660a21840ae098
+
+-- Семьи.
+CREATE TABLE IF NOT EXISTS families (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(48) NOT NULL,
+  leader_id VARCHAR(20) NOT NULL,
+  created_by VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_family_name (name),
+  KEY ix_family_leader (leader_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS family_members (
+  family_id INT UNSIGNED NOT NULL,
+  user_id VARCHAR(20) NOT NULL,
+  role ENUM('leader', 'deputy', 'member') NOT NULL DEFAULT 'member',
+  joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (family_id, user_id),
+  KEY ix_family_member_user (user_id),
+  CONSTRAINT fk_family_member_family FOREIGN KEY (family_id) REFERENCES families (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS family_invites (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  family_id INT UNSIGNED NOT NULL,
+  user_id VARCHAR(20) NOT NULL,
+  inviter_id VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_family_invite (family_id, user_id),
+  CONSTRAINT fk_family_invite_family FOREIGN KEY (family_id) REFERENCES families (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Доступ к /createfam. /faminfo и /faminvite доступны всем (приглашать могут лидер и заместители семьи).
+INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
+  ('createfam', 'technical_moderator'),
+  ('createfam', 'deputy_head_moderator'),
+  ('createfam', 'head_moderator'),
+  ('createfam', 'discord_administrator');

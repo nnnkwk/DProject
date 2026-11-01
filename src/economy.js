@@ -2,7 +2,8 @@ import { EmbedBuilder } from 'discord.js';
 import { changeNefrits, getBotSettings, getNefrits } from './database.js';
 
 export const CURRENCY_NAME = 'Нефриты';
-export const CURRENCY_EMOJI = '\u{1F7E2}';
+export const CURRENCY_EMOJI = '<:nefrit:1566512311974363236>';
+export const CURRENCY_LABEL = `${CURRENCY_NAME} ${CURRENCY_EMOJI}`;
 const EMBED_COLOR = 0x2ecc71;
 
 export const ECONOMY_COMMANDS = new Set(['nefrit', 'profile']);
@@ -10,8 +11,12 @@ export const PUBLIC_ECONOMY_COMMANDS = new Set(['profile']);
 
 const numberFormat = new Intl.NumberFormat('ru-RU');
 
+export function formatNumber(value) {
+  return numberFormat.format(value);
+}
+
 export function formatNefrits(value) {
-  return `${CURRENCY_EMOJI} ${numberFormat.format(value)}`;
+  return `${numberFormat.format(value)} ${CURRENCY_EMOJI}`;
 }
 
 function userLine(user) {
@@ -51,7 +56,7 @@ async function changeBalance(interaction) {
   const reason = interaction.options.getString('reason')?.trim() || null;
 
   if (user.bot) {
-    await interaction.editReply({ content: 'У ботов нет профиля и Нефритов.' });
+    await interaction.editReply({ content: `У ботов нет профиля и Нефритов ${CURRENCY_EMOJI}.` });
     return;
   }
   if (amount === 0) {
@@ -74,16 +79,16 @@ async function changeBalance(interaction) {
   }
 
   await logEconomyAction(interaction, {
-    title: amount > 0 ? 'Выдача Нефритов' : 'Снятие Нефритов',
+    title: `${amount > 0 ? 'Выдача' : 'Снятие'} Нефритов ${CURRENCY_EMOJI}`,
     user,
     fields: [
-      { name: 'Изменение', value: `${CURRENCY_EMOJI} ${amount > 0 ? '+' : '-'}${numberFormat.format(Math.abs(amount))}` },
+      { name: 'Изменение', value: `${amount > 0 ? '+' : '-'}${numberFormat.format(Math.abs(amount))} ${CURRENCY_EMOJI}` },
       { name: 'Баланс', value: `${formatNefrits(result.before)} → ${formatNefrits(result.after)}` },
       ...(reason ? [{ name: 'Причина', value: reason }] : []),
     ],
   });
   await interaction.editReply({
-    content: `${CURRENCY_NAME} ${member} изменены на ${amount > 0 ? '+' : ''}${numberFormat.format(amount)}.\n`
+    content: `${member}: ${CURRENCY_LABEL} изменены на ${amount > 0 ? '+' : ''}${numberFormat.format(amount)}.\n`
       + `Было: ${formatNefrits(result.before)}\nСтало: ${formatNefrits(result.after)}`
       + `${reason ? `\nПричина: ${reason}` : ''}`,
     allowedMentions: { parse: [] },
@@ -106,7 +111,7 @@ async function showProfile(interaction) {
       iconURL: (member ?? user).displayAvatarURL({ size: 128 }),
     })
     .setThumbnail((member ?? user).displayAvatarURL({ size: 256 }))
-    .addFields({ name: CURRENCY_NAME, value: formatNefrits(nefrits), inline: true });
+    .addFields({ name: CURRENCY_LABEL, value: numberFormat.format(nefrits), inline: true });
 
   await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
 }
