@@ -6,6 +6,7 @@ import { handleInteraction } from './interactions.js';
 import { getMoscowWeekStart } from './moderators.js';
 import { PUNISHMENT_COMMANDS, startTempBanScheduler } from './punishments.js';
 import { handleMessageExp, isMainChatMessage, PUBLIC_LEVEL_COMMANDS, startVoiceExpTracker } from './levels.js';
+import { MODAL_COMMANDS } from './announce.js';
 import { PUBLIC_ECONOMY_COMMANDS } from './economy.js';
 import { FAMILY_COMMANDS } from './families.js';
 import { ensureMarketPanel } from './market.js';
@@ -73,7 +74,7 @@ client.on('interactionCreate', async (interaction) => {
       console.warn(`Interaction reached the handler after ${dispatchDelay}ms.`);
     }
     if (interaction.isChatInputCommand() && !PUBLIC_REPLY_COMMANDS.has(interaction.commandName)
-      && !interaction.deferred && !interaction.replied) {
+      && !MODAL_COMMANDS.has(interaction.commandName) && !interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     }
     if (interaction.isChatInputCommand() && PUBLIC_REPLY_COMMANDS.has(interaction.commandName)

@@ -283,6 +283,20 @@ export const commandData = [
       .setDescription('Лидер семьи')
       .setRequired(true)),
   new SlashCommandBuilder()
+    .setName('announce')
+    .setDescription('Опубликовать новость об обновлении')
+    .addRoleOption((option) => option
+      .setName('ping')
+      .setDescription('Роль, которую нужно упомянуть (необязательно)')),
+  new SlashCommandBuilder()
+    .setName('delfam')
+    .setDescription('Удалить семью')
+    .addStringOption((option) => option
+      .setName('family')
+      .setDescription('Семья, которую нужно удалить')
+      .setAutocomplete(true)
+      .setRequired(true)),
+  new SlashCommandBuilder()
     .setName('faminfo')
     .setDescription('Информация о семье')
     .addStringOption((option) => option

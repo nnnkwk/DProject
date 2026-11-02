@@ -1050,3 +1050,8 @@ export async function acceptFamilyInvite(invite) {
     connection.release();
   }
 }
+
+export async function deleteFamily(familyId) {
+  const [result] = await pool.execute('DELETE FROM families WHERE id = ?', [familyId]);
+  return result.affectedRows > 0;
+}

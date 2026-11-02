@@ -31,7 +31,7 @@ export async function handleCommand(interaction) {
   const isPublicReply = isPunishment || isTicket || isFamily || isOpenCommand;
   if (!isPublicReply && !isLevel && !isEconomy && !isMarket && !MODERATOR_COMMANDS.has(interaction.commandName)) {
     await interaction.reply({
-      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders, /rank, /nefrit, /profile, /addmarket, /delmarket, /createfam, /faminfo и /faminvite.',
+      content: 'Доступны команды /setmoder, /fire, /stats, /setwarn, /setvig, /setpoints, /uplvl, /ban, /unban, /mute, /unmute, /kick, /hold, /close, /pass, /exp, /lvl, /leaders, /rank, /nefrit, /profile, /addmarket, /delmarket, /createfam, /delfam, /faminfo и /faminvite.',
       flags: MessageFlags.Ephemeral,
     });
     return;

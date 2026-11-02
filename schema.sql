@@ -22,11 +22,11 @@ CREATE TABLE IF NOT EXISTS bot_settings (
   mute_log_channel_id VARCHAR(20) NULL,
   kick_log_channel_id VARCHAR(20) NULL,
   economy_log_channel VARCHAR(20) NULL,
+  updates_news VARCHAR(20) NULL,
   archive_embeds_version TINYINT UNSIGNED NOT NULL DEFAULT 0,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- These are game/community servers shown in the request menu, not Discord guilds.
 CREATE TABLE IF NOT EXISTS role_servers (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -368,10 +368,15 @@ CREATE TABLE IF NOT EXISTS family_invites (
   UNIQUE KEY uq_family_invite (family_id, user_id),
   CONSTRAINT fk_family_invite_family FOREIGN KEY (family_id) REFERENCES families (id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-
--- Доступ к /createfam. /faminfo и /faminvite доступны всем (приглашать могут лидер и заместители семьи).
+.
 INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
   ('createfam', 'technical_moderator'),
   ('createfam', 'deputy_head_moderator'),
   ('createfam', 'head_moderator'),
   ('createfam', 'discord_administrator');
+
+INSERT IGNORE INTO commands_access (command, moderator_role) VALUES
+  ('delfam', 'technical_moderator'),
+  ('delfam', 'deputy_head_moderator'),
+  ('delfam', 'head_moderator'),
+  ('delfam', 'discord_administrator');

@@ -21,6 +21,7 @@ import {
 } from './moderation-panel.js';
 import { handleCommand } from './commands.js';
 import { handleLeadersButton } from './levels.js';
+import { handleAnnounceButton, handleAnnounceCommand, handleAnnounceModal } from './announce.js';
 import { handleFamilyAutocomplete, handleFamilyInteraction } from './families.js';
 import { handleMarketAutocomplete, handleMarketInteraction } from './market.js';
 import { handleTicketCreateButton, handleTicketModalSubmit } from './tickets.js';
@@ -260,7 +261,22 @@ async function handleRemoveRoles(interaction) {
 export async function handleInteraction(interaction) {
   if (interaction.isAutocomplete()) {
     if (interaction.commandName === 'delmarket') await handleMarketAutocomplete(interaction);
-    else if (['faminfo', 'faminvite'].includes(interaction.commandName)) await handleFamilyAutocomplete(interaction);
+    else if (['faminfo', 'faminvite', 'delfam'].includes(interaction.commandName)) await handleFamilyAutocomplete(interaction);
+    return;
+  }
+
+  if (interaction.isChatInputCommand() && interaction.commandName === 'announce') {
+    await handleAnnounceCommand(interaction);
+    return;
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('announce:')) {
+    await handleAnnounceModal(interaction);
+    return;
+  }
+
+  if (interaction.isButton() && interaction.customId.startsWith('announce:')) {
+    await handleAnnounceButton(interaction);
     return;
   }
 

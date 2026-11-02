@@ -10,6 +10,7 @@ import {
   acceptFamilyInvite,
   createFamily,
   createFamilyInvite,
+  deleteFamily,
   deleteFamilyInvite,
   findPendingFamilyInvite,
   getFamily,
@@ -22,16 +23,22 @@ import {
   searchFamilies,
 } from './database.js';
 
-export const FAMILY_COMMANDS = new Set(['createfam', 'faminfo', 'faminvite']);
+export const FAMILY_COMMANDS = new Set(['createfam', 'delfam', 'faminfo', 'faminvite']);
 export const OPEN_FAMILY_COMMANDS = new Set(['faminfo', 'faminvite']);
 
-const EMBED_COLOR = 0x3498db;
+const EMBED_COLOR = 0x2b2d31;
 const INVITE_TTL_SECONDS = 24 * 60 * 60;
 const NO_MENTIONS = { parse: [] };
 
 const DEFAULT_OWNED_FAMILIES = 1;
 function ownedFamiliesLimit() {
   return DEFAULT_OWNED_FAMILIES;
+}
+
+function baseEmbed(guild, color = EMBED_COLOR) {
+  return new EmbedBuilder()
+    .setColor(color)
+    .setFooter({ text: guild.name, iconURL: guild.iconURL() ?? undefined });
 }
 
 async function fail(interaction, content) {
@@ -69,17 +76,84 @@ async function createFamilyCommand(interaction) {
     );
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(EMBED_COLOR)
+  const embed = baseEmbed(interaction.guild)
     .setTitle('Семья создана')
     .setDescription([
-      `• **Название:** ${escapeMarkdown(name)} [${result.id}]`,
-      `• **Лидер семьи:** ${member}`,
-      `• **Создал:** ${interaction.user}`,
-    ].join('\n'))
-    .setTimestamp();
+      `**Название:** ${escapeMarkdown(name)} [${result.id}]`,
+      `**Лидер семьи:** ${member}`,
+      `**Создал:** ${interaction.user}`,
+    ].join('\n'));
   await interaction.editReply({ content: `${member}`, embeds: [embed], allowedMentions: { users: [leader.id] } });
   return undefined;
+}
+
+const DELETE_CONFIRM_TTL_MS = 5 * 60 * 1000;
+
+async function deleteFamilyCommand(interaction) {
+  const family = await resolveFamily(interaction.options.getString('family', true));
+  if (!family) return fail(interaction, 'Семья не найдена.');
+
+  const members = await getFamilyMembers(family.id);
+  const embed = baseEmbed(interaction.guild)
+    .setTitle('Удаление семьи')
+    .setDescription(
+      `Вы действительно хотите удалить семью **${familyLabel(family)}**?\n`
+      + `**Участников:** ${members.length}\n`
+      + 'Действие необратимо: семья, её состав и приглашения будут удалены.',
+    );
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`family:delyes:${family.id}:${interaction.user.id}`)
+      .setLabel('Удалить')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`family:delno:${family.id}:${interaction.user.id}`)
+      .setLabel('Отмена')
+      .setStyle(ButtonStyle.Secondary),
+  );
+  await interaction.editReply({ embeds: [embed], components: [row], allowedMentions: NO_MENTIONS });
+  return undefined;
+}
+
+async function handleDeleteConfirmation(interaction, action, rawId, ownerId) {
+  if (interaction.user.id !== ownerId) {
+    await interaction.reply({
+      content: 'Эту кнопку может нажать только тот, кто вызвал команду.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const finish = (title, description, color = EMBED_COLOR) => interaction.update({
+    content: '',
+    embeds: [resultEmbed(interaction.guild, color, title, description)],
+    components: [],
+    allowedMentions: NO_MENTIONS,
+  });
+
+  if (action === 'delno') {
+    await finish('Удаление отменено', `${interaction.user} отменил(а) удаление семьи.`);
+    return;
+  }
+  if (Date.now() - interaction.message.createdTimestamp > DELETE_CONFIRM_TTL_MS) {
+    await finish('Подтверждение истекло', 'Вызовите /delfam заново.');
+    return;
+  }
+
+  const family = await getFamily(Number(rawId));
+  if (!family) {
+    await finish('Семья не найдена', 'Эта семья уже удалена.');
+    return;
+  }
+  const members = await getFamilyMembers(family.id);
+  await deleteFamily(family.id);
+  await finish(
+    'Семья удалена',
+    `**Семья:** ${familyLabel(family)}\n`
+    + `**Участников на момент удаления:** ${members.length}\n`
+    + `**Удалил:** ${interaction.user}`,
+    0xed4245,
+  );
 }
 
 async function showFamilyInfo(interaction) {
@@ -104,14 +178,13 @@ async function showFamilyInfo(interaction) {
   const leaderId = members.find((m) => m.role === 'leader')?.user_id ?? family.leader_id;
   const deputies = members.filter((m) => m.role === 'deputy').map((m) => `<@${m.user_id}>`);
 
-  const embed = new EmbedBuilder()
-    .setColor(EMBED_COLOR)
+  const embed = baseEmbed(interaction.guild)
     .setTitle(`${family.name} [${family.id}]`)
     .setDescription([
-      `• **Лидер семьи:** <@${leaderId}>`,
-      `• **Заместитель семьи:** ${deputies.length ? deputies.join(', ') : 'отсутствует'}`,
-      `• **Всего участников:** ${members.length}`,
-      `• **Дата создания:** <t:${family.created_ts}:F>`,
+      `**Лидер семьи:** <@${leaderId}>`,
+      `**Заместитель семьи:** ${deputies.length ? deputies.join(', ') : 'отсутствует'}`,
+      `**Всего участников:** ${members.length}`,
+      `**Дата создания:** <t:${family.created_ts}:F>`,
     ].join('\n'));
   await interaction.editReply({ embeds: [embed], allowedMentions: NO_MENTIONS });
   return undefined;
@@ -139,14 +212,12 @@ async function inviteToFamily(interaction) {
   }
 
   const inviteId = await createFamilyInvite(family.id, target.id, interaction.user.id);
-  const embed = new EmbedBuilder()
-    .setColor(EMBED_COLOR)
+  const embed = baseEmbed(interaction.guild)
     .setTitle('Приглашение в семью')
     .setDescription(
       `${interaction.user} приглашает ${member} в семью **${familyLabel(family)}**.\n`
       + 'Приглашение действует 24 часа.',
-    )
-    .setTimestamp();
+    );
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`family:accept:${inviteId}`).setLabel('Принять').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`family:decline:${inviteId}`).setLabel('Отклонить').setStyle(ButtonStyle.Danger),
@@ -162,6 +233,7 @@ async function inviteToFamily(interaction) {
 
 export async function handleFamilyCommand(interaction) {
   if (interaction.commandName === 'createfam') await createFamilyCommand(interaction);
+  else if (interaction.commandName === 'delfam') await deleteFamilyCommand(interaction);
   else if (interaction.commandName === 'faminfo') await showFamilyInfo(interaction);
   else await inviteToFamily(interaction);
 }
@@ -177,12 +249,16 @@ export async function handleFamilyAutocomplete(interaction) {
   })));
 }
 
-function resultEmbed(color, title, description) {
-  return new EmbedBuilder().setColor(color).setTitle(title).setDescription(description).setTimestamp();
+function resultEmbed(guild, color, title, description) {
+  return baseEmbed(guild, color).setTitle(title).setDescription(description);
 }
 
 export async function handleFamilyInteraction(interaction) {
-  const [, action, rawId] = interaction.customId.split(':');
+  const [, action, rawId, ownerId] = interaction.customId.split(':');
+  if (action === 'delyes' || action === 'delno') {
+    await handleDeleteConfirmation(interaction, action, rawId, ownerId);
+    return;
+  }
   const invite = await getFamilyInvite(Number(rawId));
   if (!invite) {
     await interaction.reply({ content: 'Это приглашение уже недействительно.', flags: MessageFlags.Ephemeral });
@@ -198,7 +274,7 @@ export async function handleFamilyInteraction(interaction) {
     await deleteFamilyInvite(invite.id);
     await interaction.update({
       content: '',
-      embeds: [resultEmbed(0x95a5a6, 'Приглашение истекло', `Срок приглашения в семью **${label}** закончился.`)],
+      embeds: [resultEmbed(interaction.guild, EMBED_COLOR, 'Приглашение истекло', `Срок приглашения в семью **${label}** закончился.`)],
       components: [],
     });
     return;
@@ -208,7 +284,7 @@ export async function handleFamilyInteraction(interaction) {
     await deleteFamilyInvite(invite.id);
     await interaction.update({
       content: '',
-      embeds: [resultEmbed(0xe74c3c, 'Приглашение отклонено', `${interaction.user} отклонил(а) приглашение в семью **${label}**.`)],
+      embeds: [resultEmbed(interaction.guild, 0xed4245, 'Приглашение отклонено', `${interaction.user} отклонил(а) приглашение в семью **${label}**.`)],
       components: [],
       allowedMentions: NO_MENTIONS,
     });
@@ -219,7 +295,8 @@ export async function handleFamilyInteraction(interaction) {
   await interaction.update({
     content: '',
     embeds: [resultEmbed(
-      0x2ecc71,
+      interaction.guild,
+      0x57f287,
       'Приглашение принято',
       result.joined
         ? `${interaction.user} вступил(а) в семью **${label}**.`
